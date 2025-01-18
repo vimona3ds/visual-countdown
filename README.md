@@ -5,9 +5,6 @@ Visual Countdown is a simple, elegant web-based countdown timer that provides a 
 ## Installation
 
 1. Clone the repository
-```bash
-git clone https://github.com/yourusername/visual-countdown.git
-```
 
 2. Open `index.html` in your web browser
 
