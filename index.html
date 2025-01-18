@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@700&display=swap"
+        rel="stylesheet"
+    />
+    <title>Countdown Timer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .main {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: black;
+        }
+
+        .visualization-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #falling-blocks {
+            width: 100%;
+            height: 100%;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .countdown-content {
+            width: 100%;
+            height: 60%;
+        }
+
+        .countdown-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .countdown-text {
+            font-family: 'Chivo Mono', monospace;
+            font-weight: bold;
+            color: white;
+            mix-blend-mode: difference;
+            font-size: 14vmin;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        #time-input {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14vmin;
+            text-align: center;
+            display: none;
+        }
+
+        .milliseconds {
+            font-size: 50%;
+        }
+
+        .gradient-overlay-black {
+            width: 100vw;
+            height: 20vh;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-image: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 1));
+        }
+
+        .gradient-overlay-white {
+            width: 100vmax;
+            height: 100vmax;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 100%);
+        }
+    </style>
+</head>
+<body>
+    <main class="main" id="main">
+        <div class="gradient-overlay-white"></div>
+
+        <div id="visualization" class="visualization-container">
+            <svg id="falling-blocks" preserveAspectRatio="none">
+                <!-- Blocks will be rendered here -->
+            </svg>
+        </div>
+
+        <!-- <div class="gradient-overlay-black"></div> -->
+
+        <div class="countdown-overlay">
+            <div class="countdown-content">
+                <div class="countdown-display">
+                    <div id="countdown" class="countdown-text"></div>
+                    <input type="time" id="time-input" step="1">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Fullscreen functionality
+        const mainElement = document.getElementById('main');
+
+        mainElement.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                mainElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            }
+        });
+
+        // Time utilities
+        function getEndOfDay() {
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setHours(24, 0, 0, 0);
+            return tomorrow;
+        }
+
+        function getTimeRemaining(endTime) {
+            const total = endTime.getTime() - Date.now();
+            
+            const hours = String(Math.floor((total / (1000 * 60 * 60)) % 24)).padStart(2, '0');
+            const minutes = String(Math.floor((total / 1000 / 60) % 60)).padStart(2, '0');
+            const seconds = String(Math.floor((total / 1000) % 60)).padStart(2, '0');
+            const milliseconds = String(Math.floor(total % 1000)).padStart(3, '0');
+
+            return { total, hours, minutes, seconds, milliseconds };
+        }
+
+        // Falling blocks setup
+        const GRAVITY = 0.01;
+        const WIDTH = 384;
+        const NUM_PER_ROW = WIDTH;
+        const HEIGHT = 225;
+
+        let fallingBlocks = [];
+        let remainingSeconds = 0;
+        let endOfDay = getEndOfDay();
+        let lastSecond = null;  // Track the last second we added a block for
+
+        // Get DOM elements
+        const countdownElement = document.getElementById('countdown');
+        const timeInputElement = document.getElementById('time-input');
+
+        // Toggle time input visibility
+        countdownElement.addEventListener('click', () => {
+            countdownElement.style.display = 'none';
+            timeInputElement.style.display = 'block';
+            timeInputElement.focus();
+            
+            // Set endOfDay time as default
+            const currentTime = `${String(endOfDay.getHours()).padStart(2, '0')}:${String(endOfDay.getMinutes()).padStart(2, '0')}`;
+            timeInputElement.value = currentTime;
+        });
+
+        // Handle time input change
+        timeInputElement.addEventListener('change', (e) => {
+            const selectedTime = e.target.value;
+            const [hours, minutes] = selectedTime.split(':').map(Number);
+
+            const now = new Date();
+            now.setHours(hours, minutes, 0, 0);
+
+            // If selected time is earlier than current time, set for next day
+            if (now <= new Date()) {
+                now.setDate(now.getDate() + 1);
+            }
+
+            endOfDay = now;
+            
+            // Reset falling blocks
+            fallingBlocks = [];
+
+            // Hide input, show countdown
+            timeInputElement.style.display = 'none';
+            countdownElement.style.display = 'block';
+        });
+
+        // Hide time input when it loses focus
+        timeInputElement.addEventListener('blur', () => {
+            timeInputElement.style.display = 'none';
+            countdownElement.style.display = 'block';
+        });
+
+        // Prevent input from closing when clicking on it
+        timeInputElement.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Initialize visualization
+        function initVisualization() {
+            const svg = document.getElementById('falling-blocks');
+            svg.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+            svg.style.width = '100vw';
+            svg.style.height = '100vh';
+        }
+
+        // Update visualization dimensions
+        function updateVisualizationSize() {
+            const container = document.getElementById('visualization');
+            // const aspectRatio = WIDTH / HEIGHT;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // const visualizationWidth = Math.min(windowWidth, windowHeight * aspectRatio);
+            // const visualizationHeight = visualizationWidth / aspectRatio;
+            
+            container.style.width = `${windowWidth}px`;
+            container.style.height = `${windowHeight}px`;
+        }
+
+        // Render falling blocks
+        function renderBlocks() {
+            const svg = document.getElementById('falling-blocks');
+            svg.innerHTML = '';
+
+            // Complete rows
+            const completeRows = Math.floor(remainingSeconds / NUM_PER_ROW);
+            const lastRowBlocks = remainingSeconds % NUM_PER_ROW;
+
+            // Add complete rows rectangle
+            const completeRowsRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            completeRowsRect.setAttribute('x', '0');
+            completeRowsRect.setAttribute('y', '0');
+            completeRowsRect.setAttribute('width', WIDTH);
+            completeRowsRect.setAttribute('height', completeRows);
+            completeRowsRect.setAttribute('fill', '#fff');
+            svg.appendChild(completeRowsRect);
+
+            const SIZE_OFFSET = 1
+            // Add last incomplete row
+            const lastRowRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            lastRowRect.setAttribute('x', '0');
+            lastRowRect.setAttribute('y', completeRows - SIZE_OFFSET);
+            lastRowRect.setAttribute('width', lastRowBlocks);
+            lastRowRect.setAttribute('height', `${1 + SIZE_OFFSET}px`);
+            lastRowRect.setAttribute('fill', '#fff');
+            svg.appendChild(lastRowRect);
+
+            // Add falling blocks
+            fallingBlocks.forEach(block => {
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', block.x);
+                rect.setAttribute('y', block.y);
+                rect.setAttribute('width', '1');
+                rect.setAttribute('height', '1');
+                rect.setAttribute('fill', '#fff');
+                svg.appendChild(rect);
+            });
+        }
+
+        // Animation loop
+        function animate() {
+            fallingBlocks = fallingBlocks
+                .map(block => ({
+                    ...block,
+                    y: block.y + block.vy,
+                    vy: block.vy + GRAVITY
+                }))
+                .filter(block => block.y < HEIGHT);
+
+            renderBlocks();
+            requestAnimationFrame(animate);
+        }
+
+        // Update countdown
+        function updateCountdown() {
+            const time = getTimeRemaining(endOfDay);
+            const countdownElement = document.getElementById('countdown');
+            countdownElement.innerHTML = `-${time.hours}:${time.minutes}:${time.seconds}<span class="milliseconds">.${time.milliseconds}</span>`;
+            
+            remainingSeconds = Math.floor(time.total / 1000);
+            
+            // Add new falling block if needed
+            if (lastSecond !== remainingSeconds && remainingSeconds < WIDTH * HEIGHT) {
+                fallingBlocks.push({
+                    x: remainingSeconds % NUM_PER_ROW,
+                    y: Math.floor(remainingSeconds / NUM_PER_ROW),
+                    vy: 0.01
+                });
+                lastSecond = remainingSeconds;
+            }
+        }
+
+        // Initialize and start animations
+        initVisualization();
+        updateVisualizationSize();
+        animate();
+        
+        // Start update loops
+        setInterval(updateCountdown, 1);
+        
+        // Handle window resize
+        window.addEventListener('resize', updateVisualizationSize);
+    </script>
+</body>
+</html>
