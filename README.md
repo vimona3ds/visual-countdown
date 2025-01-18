@@ -1,11 +1,14 @@
 # Visual Countdown
 
-Visual Countdown is a simple, elegant web-based countdown timer that provides a clean and minimalist interface for visualizing the amount of seconds left until a certain time of the day (like bedtime, or just the end of the day).
+![Visual Countdown](./docs/example.gif)
+
+Visual Countdown is a web-based timer that visualizes the amount of seconds left until a certain time of the day (like bedtime, or just the end of the day).
+
+It works nicely as a new tab page.
 
 ## Installation
 
 1. Clone the repository
-
 2. Open `index.html` in your web browser
 
 ## Usage
