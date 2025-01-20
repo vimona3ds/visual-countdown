@@ -103,6 +103,7 @@
 </head>
 <body>
     <main class="main" id="main">
+        <audio id="tickSound" src="ticking.mp3" preload="auto"></audio>
         <div class="gradient-overlay-white"></div>
 
         <div id="visualization" class="visualization-container">
@@ -126,8 +127,21 @@
     <script>
         // Fullscreen functionality
         const mainElement = document.getElementById('main');
+        const tickSound = document.getElementById('tickSound');
 
-        mainElement.addEventListener('click', () => {
+        // Enable audio on first interaction
+        function enableAudio() {
+            tickSound.load();
+            tickSound.play().catch(error => {
+                console.error('Initial audio play failed:', error);
+            });
+        }
+
+        mainElement.addEventListener('click', (event) => {
+            // Try to play audio
+            enableAudio();
+
+            // Handle fullscreen
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             } else {
@@ -166,6 +180,7 @@
         let remainingSeconds = 0;
         let endOfDay = getEndOfDay();
         let lastSecond = null;  // Track the last second we added a block for
+        let secondCounter = 15;  // Counter for playing tick sound
 
         // Get DOM elements
         const countdownElement = document.getElementById('countdown');
@@ -308,6 +323,33 @@
                     vy: 0.01
                 });
                 lastSecond = remainingSeconds;
+                
+                // Increment counter and play sound when it reaches 16
+                secondCounter++;
+                if (secondCounter === 16) {
+                    const tickSound = document.getElementById('tickSound');
+                    
+                    // Debugging audio playback
+                    console.log('Attempting to play sound', {
+                        src: tickSound.src,
+                        readyState: tickSound.readyState,
+                        networkState: tickSound.networkState
+                    });
+                    
+                    tickSound.currentTime = 0;
+                    tickSound.play()
+                        .then(() => console.log('Sound played successfully'))
+                        .catch(error => {
+                            console.error('Error playing sound:', error);
+                            console.log('Audio element details:', {
+                                error: error.message,
+                                src: tickSound.src,
+                                paused: tickSound.paused,
+                                ended: tickSound.ended
+                            });
+                        });
+                    secondCounter = 0;
+                }
             }
         }
 
