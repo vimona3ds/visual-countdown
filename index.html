@@ -66,16 +66,6 @@
             cursor: pointer;
         }
 
-        #time-input {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14vmin;
-            text-align: center;
-            display: none;
-        }
-
         .milliseconds {
             font-size: 50%;
         }
@@ -118,7 +108,6 @@
             <div class="countdown-content">
                 <div class="countdown-display">
                     <div id="countdown" class="countdown-text"></div>
-                    <input type="time" id="time-input" step="1">
                 </div>
             </div>
         </div>
@@ -184,51 +173,37 @@
 
         // Get DOM elements
         const countdownElement = document.getElementById('countdown');
-        const timeInputElement = document.getElementById('time-input');
 
         // Toggle time input visibility
-        countdownElement.addEventListener('click', () => {
-            countdownElement.style.display = 'none';
-            timeInputElement.style.display = 'block';
-            timeInputElement.focus();
+        countdownElement.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent fullscreen toggle
             
-            // Set endOfDay time as default
-            const currentTime = `${String(endOfDay.getHours()).padStart(2, '0')}:${String(endOfDay.getMinutes()).padStart(2, '0')}`;
-            timeInputElement.value = currentTime;
-        });
-
-        // Handle time input change
-        timeInputElement.addEventListener('change', (e) => {
-            const selectedTime = e.target.value;
-            const [hours, minutes] = selectedTime.split(':').map(Number);
-
+            const timeFormat = "HH:MM:SS";
+            const currentTime = `${String(endOfDay.getHours()).padStart(2, '0')}:${String(endOfDay.getMinutes()).padStart(2, '0')}:${String(endOfDay.getSeconds()).padStart(2, '0')}`;
+            
+            const newTime = prompt(`Enter new time in ${timeFormat} format (e.g. 14:30:00):`, currentTime);
+            
+            if (newTime === null) return; // User clicked cancel
+            
+            // Validate time format
+            const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/;
+            if (!timeRegex.test(newTime)) {
+                alert(`Invalid time format. Please use ${timeFormat} format (e.g. 14:30:00)`);
+                return;
+            }
+            
+            const [hours, minutes, seconds] = newTime.split(':').map(Number);
+            
             const now = new Date();
-            now.setHours(hours, minutes, 0, 0);
-
+            now.setHours(hours, minutes, seconds, 0);
+            
             // If selected time is earlier than current time, set for next day
             if (now <= new Date()) {
                 now.setDate(now.getDate() + 1);
             }
-
-            endOfDay = now;
             
-            // Reset falling blocks
-            fallingBlocks = [];
-
-            // Hide input, show countdown
-            timeInputElement.style.display = 'none';
-            countdownElement.style.display = 'block';
-        });
-
-        // Hide time input when it loses focus
-        timeInputElement.addEventListener('blur', () => {
-            timeInputElement.style.display = 'none';
-            countdownElement.style.display = 'block';
-        });
-
-        // Prevent input from closing when clicking on it
-        timeInputElement.addEventListener('click', (e) => {
-            e.stopPropagation();
+            endOfDay = now;
+            fallingBlocks = []; // Reset falling blocks
         });
 
         // Initialize visualization
